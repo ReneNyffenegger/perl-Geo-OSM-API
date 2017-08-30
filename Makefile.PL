@@ -17,7 +17,8 @@ WriteMakefile(
     },
     PREREQ_PM => {
       'LWP::UserAgent'        => 0,
-      'HTTP::Request'         => 0
+      'HTTP::Request'         => 0,
+      'XML::XPath'            => 0
     },
     BUILD_REQUIRES => {
         'Test::Simple' => 0,

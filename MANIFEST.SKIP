@@ -1,0 +1,7 @@
+\.git
+\.swp$
+\.bak$
+Geo-OSM-API-.*\.tar\.gz
+test.db
+blib
+README.md

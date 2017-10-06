@@ -305,7 +305,7 @@ sub create_changeset { #_{
 
 =head2 create_changeset
 
-    my changeset_id = $osm_db->create_changeset;
+    my changeset_id = $osm_db->create_changeset($comment);
 
     $osm-db->add_node    ($changeset_id, …);
     $osm_db->add_way     ($changeset_id, …);
@@ -321,14 +321,15 @@ sub create_changeset { #_{
 
 #_}
 
-  my $self = shift;
+  my $self    = shift;
+  my $comment = shift;
 
 
 # TODO …
   my $answer = $self->_request('PUT', "changeset/create", 
     {xml=> "<changeset>
   <tag k='created_by' v='Perl module Geo::OSM::API' />
-  <tag k='comment' v='foo' />
+  <tag k='comment' v='$comment' />
 </changeset>" });
 
   return $answer;

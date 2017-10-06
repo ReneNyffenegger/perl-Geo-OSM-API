@@ -307,9 +307,9 @@ sub create_changeset { #_{
 
     my changeset_id = $osm_db->create_changeset($comment);
 
-    $osm-db->add_node    ($changeset_id, …);
-    $osm_db->add_way     ($changeset_id, …);
-    $osm_db->add_relation($changeset_id, …);
+    $osm-db->create_node    ($changeset_id, …);
+    $osm_db->create_way     ($changeset_id, …);
+    $osm_db->create_relation($changeset_id, …);
 
     $osm-db->delete_node    ($changeset_id, …);
     $osm_db->delete_way     ($changeset_id, …);
@@ -360,6 +360,55 @@ Close the changeset that was created with L</create_changeset>.
 
 } #_}
 
+sub create_way { #_{
+#_{ POD
+
+=head2 create_way
+
+    …
+
+=cut
+
+#_}
+
+  my $self = shift;
+  my $xml  = shift;
+
+
+# TODO …
+  my $answer = $self->_request('PUT', "way/create", {xml=> $xml });
+
+} #_}
+sub delete_way { #_{
+#_{ POD
+
+=head2 delete_way
+
+    …
+
+=cut
+
+#_}
+
+  my $self         = shift;
+  my $changeset_id = shift;
+  my $id           = shift;
+
+  my $answer = $self->way($id);
+
+  my $xp = XML::XPath->new(xml=>$answer);
+
+  my $version = $xp->findvalue('/osm/way/@version');
+
+  my $xml = qq{<way id="$id" changeset="$changeset_id" version="$version" />};
+
+
+# TODO …
+  $answer = $self->_request('DELETE', "way/$id", {xml=> $xml });
+  return $answer;
+
+} #_}
+
 sub _request { #_{
 #_{ POD
 
@@ -386,7 +435,7 @@ sub _request { #_{
     $version = '';
   }
 
-  croak "Unsupported method $method" unless $method eq 'GET' or $method eq 'PUT';
+  croak "Unsupported method $method" unless grep { $method eq $_ } qw(GET PUT DELETE);
 
   my $url = $self->_url_api . "api/$version${path}";
 

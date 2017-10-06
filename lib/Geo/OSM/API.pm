@@ -77,27 +77,7 @@ sub user_details { #_{
 
 =head2 user_details
 
-    … $osm_api->user_details;
-
-Return details of the logged in user.
-
-=cut
-
-
-#_}
-  
-  my $self = shift;
-  my $answer = $self->_request('GET', '/user/details');
-
-  return $answer;
-
-} #_}
-sub user_preferences { #_{
-#_{ POD
-
-=head2 user_preferences
-
-    my $user_prefs = $osm_api->user_preferences;
+    my $user_details = $osm_api->user_details;
 
     printf("user id        : %d\n", $user_prefs->{user_id});
     printf("changeset count: %d\n", $user_prefs->{changeset_count});
@@ -107,7 +87,6 @@ Return preferences of the logged in user.
 B<TODO> finish me!
 
 =cut
-
 
 #_}
   
@@ -122,6 +101,28 @@ B<TODO> finish me!
   $ret->{changeset_count} = $xp->findvalue('/osm/changeset/@count');
 
   return $ret;
+
+} #_}
+sub user_preferences { #_{
+#_{ POD
+
+=head2 user_preferences
+
+    my $user_prefs = $osm_api->user_preferences;
+
+
+=cut
+
+
+#_}
+  
+  my $self = shift;
+  my $answer = $self->_request('GET', '/user/preferences');
+
+# my $xp = XML::XPath->new(xml=>$answer);
+
+  return $answer;
+
 
 } #_}
 sub testing { #_{

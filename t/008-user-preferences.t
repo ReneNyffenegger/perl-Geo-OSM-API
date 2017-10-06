@@ -12,6 +12,6 @@ $osm_api->testing($ENV{TQ84_OSM_TESTING});
 $osm_api->authenticate($ENV{TQ84_OSM_USERNAME}, $ENV{TQ84_OSM_PW});
 
 
-print $osm_api->user_preferences;
+my $preferences = $osm_api->user_preferences;
 
-ok('TODO');
+ok($preferences->{user_id});

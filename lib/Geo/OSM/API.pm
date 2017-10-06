@@ -97,9 +97,14 @@ sub user_preferences { #_{
 
 =head2 user_preferences
 
-    … $osm_api->user_preferences;
+    my $user_prefs = $osm_api->user_preferences;
+
+    printf("user id        : %d\n", $user_prefs->{user_id});
+    printf("changeset count: %d\n", $user_prefs->{changeset_count});
 
 Return preferences of the logged in user.
+
+B<TODO> finish me!
 
 =cut
 
@@ -109,7 +114,14 @@ Return preferences of the logged in user.
   my $self = shift;
   my $answer = $self->_request('GET', '/user/details');
 
-  return $answer;
+  my $xp = XML::XPath->new(xml=>$answer);
+
+  my $ret = {};
+
+  $ret->{user_id        } = $xp->findvalue('/osm/user/@id');
+  $ret->{changeset_count} = $xp->findvalue('/osm/changeset/@count');
+
+  return $ret;
 
 } #_}
 sub testing { #_{

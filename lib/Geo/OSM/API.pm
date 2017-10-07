@@ -280,25 +280,49 @@ sub bounding_box_notes { #_{
 
   return $answer;
 } #_}
-sub way { #_{
+sub get_primitive { #_{
 #_{ POD
 
-=head2 way
+=head2 get_primitive
 
-    my way = $osm_db->way(4303648993);
+    my way = $osm_db->primitive('way', 4303648993);
+
+Gets the given primitive (here: C<< 'way' >>) with the given id (here: C<< 4303648993 >>).
 
 =cut
 
 #_}
 
-  my $self = shift;
+  my $self      = shift;
+  my $primitive = shift;
+  my $id        = shift;
+
+  _check_primitive($primitive);
+
+  my $answer = $self->_request('GET', "$primitive/$id");
+  return $answer;
+
+} #_}
+sub get_way { #_{
+#_{ POD
+
+=head2 get_way
+
+    my way = $osm_db->get_way(4303648993);
+
+=cut
+
+#_}
+
+  my $self   = shift;
   my $way_id = shift;
 
+  return $self->get_primitive('way', $way_id);
 
 # TODO …
-  my $answer = $self->_request('GET', "way/$way_id");
+# my $answer = $self->_request('GET', "way/$way_id");
 
-  return $answer;
+# return $answer;
 } #_}
 sub create_changeset { #_{
 #_{ POD
@@ -324,11 +348,12 @@ sub create_changeset { #_{
   my $self    = shift;
   my $comment = shift;
 
+  my $who_am_I = _who_am_I();
 
 # TODO …
   my $answer = $self->_request('PUT', "changeset/create", 
     {xml=> "<changeset>
-  <tag k='created_by' v='Perl module Geo::OSM::API' />
+  <tag k='created_by' v='$who_am_I' />
   <tag k='comment' v='$comment' />
 </changeset>" });
 
@@ -394,7 +419,7 @@ sub delete_way { #_{
   my $changeset_id = shift;
   my $id           = shift;
 
-  my $answer = $self->way($id);
+  my $answer = $self->get_way($id);
 
   my $xp = XML::XPath->new(xml=>$answer);
 
@@ -409,6 +434,71 @@ sub delete_way { #_{
 
 } #_}
 
+sub set_tag { #_{
+#_{ POD
+
+=head2 set_tag
+
+    $osm_api->set_tag('way', 'name', 'foo');
+
+=cut
+
+#_}
+  
+  my $self         = shift;
+  my $changeset_id = shift;
+  my $primitive    = shift;
+  my $primitive_id = shift;
+  my $key          = shift;
+  my $val          = shift;
+
+  _check_primitive($primitive);
+
+  my $answer = $self->get_primitive($primitive, $primitive_id);
+  my $xp = XML::XPath->new(xml=>$answer);
+
+  $xp->setNodeText("/osm/$primitive/tag[\@k='$key']/\@v", $val);
+  $xp->setNodeText("/osm/$primitive/\@changeset", $changeset_id);
+
+  my ($primitive_xml) = $xp->findnodes("/osm/$primitive");
+
+# print $primitive_xml-> toString();
+
+# my $primitive_xml = $xp->getNodeValu
+# print $answer;
+# my $version = $xp->findvalue('/osm/way/@version');
+#
+
+# $xp->setNodeText('/osm/
+# my $val_of_key = $xp->findvalue("/osm/way/t
+
+#   if ($primitive eq 'way') {
+# #   my $version = $xp->findvalue("/osm/$primitive/\@version");
+#   }
+#   else {
+#     die "Implement $primitive in set_tag";
+#   }
+
+#   my $xml = sprintf(
+# qq{<!-- <osmChange version="%s" generator="%s"> -->
+# <modify>
+#   <$primitive id="$primitive_id" changeset="$changeset_id" version="$version">
+#     <tag k="$key" v="$val" />
+# 
+#   </$primitive>
+# </modify>
+# <!--  </osmChange> -->
+#   },
+#   _version(),
+#   _who_am_I()
+#   );
+# 
+# 
+ 
+    print "Calling _request\n";
+    $self->_request('POST', "changeset/$changeset_id/upload", {xml_change => '<modify>' . $primitive_xml->toString() . '</modify>' });
+
+} #_}
 sub _request { #_{
 #_{ POD
 
@@ -418,7 +508,11 @@ sub _request { #_{
     $self->_request('GET', 'map?bbox=$left,$bottom,$right,$top');
 
     $self->_request('PUT', 'changeset/create', {xml=> '...'});
+
+    $self->_request('PUT', '...'             , {xml_change=> '...');
     … etc …
+
+Use the C<< xml_change=>1 >> option pass xml with an C<< <osmChange> … </osmChange> >> xml structure.
 
 =cut
 
@@ -430,29 +524,30 @@ sub _request { #_{
   my $opts   = shift;
 
 
-  my $version = '0.6/';
+  my $version = _version() . '/';
   if ($opts and $opts->{no_version}) {
     $version = '';
   }
 
-  croak "Unsupported method $method" unless grep { $method eq $_ } qw(GET PUT DELETE);
+  croak "Unsupported method $method" unless grep { $method eq $_ } qw(GET PUT DELETE POST);
 
   my $url = $self->_url_api . "api/$version${path}";
 
   my $req = HTTP::Request->new($method => $url) or croak;
 
+  if (exists $opts->{xml_change}) {
+    print "\n\n", $opts->{xml_change}, "\n\n";
+    $req->content_type('text/xml');
+    $req->content("<osmChange>$opts->{xml_change}</osmChange>");
+  }
   if (exists $opts->{xml}) {
     $req->content_type('text/xml');
     $req->content("<osm>$opts->{xml}</osm>");
   }
 
-# print "\nrequest: $url\n";
-
   my $res = $self->{ua}->request($req) or croak;
 
-
-  return $res->content if $res->code == 200;
-
+  return $res->content           if $res->code == 200;
   croak "User is not authorized" if $res->code == 401;
 
   croak "$method $url caused status " . $res->status_line . " [" . $res->content . "]" unless $res->code == 200;
@@ -532,6 +627,60 @@ This method checks if these are correct.
   return 0 if $lon_left    >= $lon_right;
   return 0 if $lat_bottom  >= $lat_top;
   return 1;
+
+} #_}
+sub _check_primitive { #_{
+#_{ POD
+
+=head2 _check_primitive
+
+    my $primitive='node';
+
+    croak … unless Geo::OSM::API::_check_primitive($primitive);
+
+
+Checks wheather the passed primitive is C<< 'node' >>, C<< 'way' >>
+or C<< 'relation' >>.
+
+=cut
+
+#_}
+
+  my $primitive = shift;
+
+  croak "unknown primitive $primitive" unless grep {$primitive eq $_ } qw(node way relation);
+
+} #_}
+sub _version { #_{
+#_{ POD
+
+=head2 _version
+
+
+    my version =  Geo::OSM::API::_version;
+
+
+Returns the version of the API, not the version of C<< Geo::OSM::API >>.
+
+=cut
+
+#_}
+
+  return '0.6';
+
+} #_}
+sub _who_am_I { #_{
+#_{ POD
+
+=head2 _who_am_I
+
+Returns a meaningful string, such as C<< Perl module Geo::OSM::API >>.
+
+=cut
+
+#_}
+
+  return 'Perl module Geo::OSM::API';
 
 } #_}
 

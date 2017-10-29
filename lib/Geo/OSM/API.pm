@@ -155,7 +155,7 @@ sub capabilities { #_{
 =head2 capabilities
 
 
-    my $capabilities = $osm_db -> capabilities;
+    my $capabilities = $osm_api -> capabilities;
 
     print $capabilities -> {version_minumum            };
     print $capabilities -> {version_maximum            };
@@ -201,7 +201,7 @@ sub permissions { #_{
 =head2 permissions
 
 
-    my $permissions = $osm_db -> permissions;
+    my $permissions = $osm_api -> permissions;
 
 
 =cut
@@ -231,7 +231,7 @@ sub bounding_box { #_{
     my $lon_right  =  7.68022;
     my $lat_top    = 45.98332;
 
-    my … = $osm_db->bounding_box($lon_left, $lat_bottom, $lon_right, $lat_top);
+    my … = $osm_api->bounding_box($lon_left, $lat_bottom, $lon_right, $lat_top);
 
 =cut
 
@@ -261,7 +261,7 @@ sub bounding_box_notes { #_{
     my $lon_right  =  7.68022;
     my $lat_top    = 45.98332;
 
-    my … = $osm_db->bounding_box_notes($lon_left, $lat_bottom, $lon_right, $lat_top);
+    my … = $osm_api->bounding_box_notes($lon_left, $lat_bottom, $lon_right, $lat_top);
 
 =cut
 
@@ -286,7 +286,7 @@ sub get_primitive { #_{
 
 =head2 get_primitive
 
-    my way = $osm_db->primitive('way', 4303648993);
+    my way = $osm_api->primitive('way', 4303648993);
 
 Gets the given primitive (here: C<< 'way' >>) with the given id (here: C<< 4303648993 >>).
 
@@ -309,7 +309,7 @@ sub get_way { #_{
 
 =head2 get_way
 
-    my way = $osm_db->get_way(4303648993);
+    my way = $osm_api->get_way(4303648993);
 
 =cut
 
@@ -330,17 +330,17 @@ sub create_changeset { #_{
 
 =head2 create_changeset
 
-    my changeset_id = $osm_db->create_changeset($comment);
+    my changeset_id = $osm_api->create_changeset($comment);
 
-    $osm-db->create_node    ($changeset_id, …);
-    $osm_db->create_way     ($changeset_id, …);
-    $osm_db->create_relation($changeset_id, …);
+    $osm-api->create_node    ($changeset_id, …);
+    $osm_api->create_way     ($changeset_id, …);
+    $osm_api->create_relation($changeset_id, …);
 
-    $osm-db->delete_node    ($changeset_id, …);
-    $osm_db->delete_way     ($changeset_id, …);
-    $osm_db->delete_relation($changeset_id, …);
+    $osm-api->delete_node    ($changeset_id, …);
+    $osm_api->delete_way     ($changeset_id, …);
+    $osm_api->delete_relation($changeset_id, …);
 
-    $osm_db->close_changeset($changeset_id);
+    $osm_api->close_changeset($changeset_id);
 
 =cut
 
@@ -365,9 +365,9 @@ sub close_changeset { #_{
 
 =head2 close_changeset
 
-    my changeset_id = $osm_db->create_changeset;
+    my changeset_id = $osm_api->create_changeset;
 
-    $osm_db->close_changeset($changeset_id);
+    $osm_api->close_changeset($changeset_id);
 
 Close the changeset that was created with L</create_changeset>.
 
@@ -386,6 +386,37 @@ Close the changeset that was created with L</create_changeset>.
 
 } #_}
 
+sub create_node { #_{
+#_{ POD
+
+=head2 create_node
+
+    my changeset_id = $osm_api->create_changeset($comment);
+
+    $osm-db->create_node($changeset_id,
+      $lat, $lon
+
+=cut
+
+#_}
+  my $self         = shift;
+  my $changeset_id = shift;
+  my $lat          = shift;
+  my $lon          = shift;
+  my $key_val_ref  = shift; # TODO!
+
+  my $xml  = XML::XPath->new(xml=>'<node/>');
+  my ($node) = $xml->findnodes('/node');
+
+
+  _xml_node_add_attribute($node, 'changeset', $changeset_id);
+  _xml_node_add_attribute($node, 'lat'      , $lat         );
+  _xml_node_add_attribute($node, 'lon'      , $lon         );
+
+  my $answer = $self->_request('PUT', "node/create", {xml=> $xml->findnodes_as_string('/') });
+  return $answer; # new node id
+
+} #_}
 sub create_way { #_{
 #_{ POD
 
@@ -403,6 +434,47 @@ sub create_way { #_{
 
 # TODO …
   my $answer = $self->_request('PUT', "way/create", {xml=> $xml });
+
+} #_}
+sub delete_primitive { #_{
+
+  my $self         = shift;
+  my $primitive    = shift;
+  my $changeset_id = shift;
+  my $id           = shift;
+
+  _check_primitive($primitive);
+
+  my $answer = $self->get_primitive($primitive, $id);
+
+  my $xp = XML::XPath->new(xml=>$answer);
+
+  my $version = $xp->findvalue("/osm/$primitive/\@version");
+
+  my $xml = qq{<$primitive id="$id" changeset="$changeset_id" version="$version" />};
+
+
+  $answer = $self->_request('DELETE', "$primitive/$id", {xml=> $xml });
+  return $answer;
+
+} #_}
+sub delete_node { #_{
+#_{ POD
+
+=head2 delete_node
+
+    …
+
+=cut
+
+#_}
+
+  my $self         = shift;
+  my $changeset_id = shift;
+  my $id           = shift;
+
+  $self->delete_primitive('node', $changeset_id, $id);
+
 
 } #_}
 sub delete_way { #_{
@@ -500,6 +572,25 @@ sub set_tag { #_{
     $self->_request('POST', "changeset/$changeset_id/upload", {xml_change => '<modify>' . $primitive_xml->toString() . '</modify>' });
 
 } #_}
+sub _xml_node_add_attribute {
+#_{ POD
+
+=head2 _xml_node_add_attribute
+
+    …
+
+=cut
+
+  my $node      = shift;
+  my $attr_name = shift;
+  my $attr_val  = shift;
+
+  my $attr = XML::XPath::Node::Attribute->new($attr_name, $attr_val);
+  $node->appendAttribute($attr);
+
+#_}
+
+}
 sub _request { #_{
 #_{ POD
 

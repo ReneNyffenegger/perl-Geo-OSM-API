@@ -15,6 +15,7 @@ use strict;
 
 use utf8;
 use Carp;
+use Encode;
 
 use LWP::UserAgent;
 use HTTP::Request;
@@ -536,13 +537,12 @@ Use the C<< xml_change=>1 >> option pass xml with an C<< <osmChange> … </osmCh
   my $req = HTTP::Request->new($method => $url) or croak;
 
   if (exists $opts->{xml_change}) {
-    print "\n\n", $opts->{xml_change}, "\n\n";
     $req->content_type('text/xml');
-    $req->content("<osmChange>$opts->{xml_change}</osmChange>");
+    $req->content(encode("utf8", "<osmChange>$opts->{xml_change}</osmChange>"));
   }
   if (exists $opts->{xml}) {
     $req->content_type('text/xml');
-    $req->content("<osm>$opts->{xml}</osm>");
+    $req->content(encode("utf8", "<osm>$opts->{xml}</osm>"));
   }
 
   my $res = $self->{ua}->request($req) or croak;
